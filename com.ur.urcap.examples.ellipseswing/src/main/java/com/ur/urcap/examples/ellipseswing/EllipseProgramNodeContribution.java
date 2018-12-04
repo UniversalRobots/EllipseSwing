@@ -20,6 +20,10 @@ import com.ur.urcap.api.domain.program.structure.TreeNode;
 import com.ur.urcap.api.domain.program.structure.TreeStructureException;
 import com.ur.urcap.api.domain.script.ScriptWriter;
 import com.ur.urcap.api.domain.userinteraction.RobotPositionCallback;
+import com.ur.urcap.api.domain.userinteraction.robot.movement.MovementCompleteEvent;
+import com.ur.urcap.api.domain.userinteraction.robot.movement.MovementErrorEvent;
+import com.ur.urcap.api.domain.userinteraction.robot.movement.RobotMovement;
+import com.ur.urcap.api.domain.userinteraction.robot.movement.RobotMovementCallback;
 import com.ur.urcap.api.domain.validation.ErrorHandler;
 import com.ur.urcap.api.domain.value.Pose;
 import com.ur.urcap.api.domain.value.ValueFactoryProvider;
@@ -38,6 +42,7 @@ import java.util.List;
 public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 
 	private static final String DEFINED_KEY = "is_defined";
+	private static final String CENTER_POSITION = "center_pose";
 
 	private static final double SHARED_TOOL_SPEED = 250;
 	private static final double SHARED_TOOL_ACCELERATION = 1200;
@@ -58,20 +63,24 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 	private WaypointNodeConfigFactory waypointNodeConfigFactory;
 
 	private final EllipseProgramNodeView view;
+	private final RobotMovement robotMovement;
+	private EllipseState ellipseState = new EllipseState();
 
 	public EllipseProgramNodeContribution(ProgramAPIProvider apiProvider, EllipseProgramNodeView view,
-	                                      DataModel model) {
+										  DataModel model) {
 		this.apiProvider = apiProvider;
 		this.dataModel = model;
 		this.view = view;
 
 		programNodeFactory = apiProvider.getProgramAPI().getProgramModel().getProgramNodeFactory();
 		waypointNodeConfigFactory = programNodeFactory.createWaypointNode().getConfigFactory();
+		robotMovement = apiProvider.getUserInterfaceAPI().getUserInteraction().getRobotMovement();
 	}
 
 	@Override
 	public void openView() {
-		view.clearErrors();
+		view.updateError(this.ellipseState.getMessage(), this.ellipseState.isError());
+		view.enableMoveButton(dataModel.get(CENTER_POSITION, (Pose) null) != null);
 	}
 
 	@Override
@@ -95,6 +104,7 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 	}
 
 	public void selectCenterPoint() {
+		clearErrors();
 		UserInterfaceAPI uiapi = apiProvider.getUserInterfaceAPI();
 		uiapi.getUserInteraction().getUserDefinedRobotPosition(new RobotPositionCallback() {
 			@Override
@@ -105,6 +115,45 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 				adjustWaypointsToCenterPoint(pose, jointPositions);
 			}
 		});
+	}
+
+	public void moveRobot() {
+		clearErrors();
+		Pose centerPose = dataModel.get(CENTER_POSITION, (Pose) null);
+		if (centerPose != null) {
+			robotMovement.requestUserToMoveRobot(centerPose, new RobotMovementCallback() {
+
+				@Override
+				public void onComplete(MovementCompleteEvent event) {
+
+				}
+
+				@Override
+				public void onError(MovementErrorEvent event) {
+					updateError(new EllipseState(getErrorMessage(event.getErrorType())));
+				}
+			});
+		}
+	}
+
+	private void updateError(EllipseState ellipseState) {
+		this.ellipseState = ellipseState;
+		view.updateError(ellipseState.getMessage(), ellipseState.isError());
+	}
+
+	private void clearErrors() {
+		this.ellipseState = new EllipseState();
+		view.clearErrors();
+	}
+
+	private String getErrorMessage(MovementErrorEvent.ErrorType errorType) {
+		switch (errorType) {
+			case UNREACHABLE_POSE:
+				return "Could not move to center point.";
+
+			default:
+				return "Error in move here";
+		}
 	}
 
 	private void removeNodes() {
@@ -122,16 +171,17 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 	}
 
 	private void adjustWaypointsToCenterPoint(Pose startPose, JointPositions jointPositions) {
+		dataModel.set(CENTER_POSITION, startPose);
 		try {
 			configureWaypointNodes(startPose, jointPositions);
-			view.clearErrors();
 			setDefined(true);
 		} catch (IllegalArgumentException e) {
-			view.setError();
+			updateError(new EllipseState("Could not create ellipse movement<br>Try a different center point."));
 			setDefined(false);
 			resetWaypointNodes();
 		}
 		lockTreeNodes();
+		view.enableMoveButton(true);
 	}
 
 	private void resetWaypointNodes() {
@@ -166,7 +216,7 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 	}
 
 	private WaypointNodeConfig createWaypointConfig(Pose centerPose, JointPositions jointPositions, double xOffsetInMM,
-	                                                double yOffsetInMM, double zOffsetInMM) {
+													double yOffsetInMM, double zOffsetInMM) {
 		BlendParameters blendParameters = waypointNodeConfigFactory.createSharedBlendParameters();
 		WaypointMotionParameters motionParameters = waypointNodeConfigFactory.createSharedMotionParameters();
 		Pose pose = createPoseUsingCenterPoseAndOffset(centerPose, xOffsetInMM, yOffsetInMM, zOffsetInMM,
@@ -177,7 +227,7 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 	}
 
 	private Pose createPoseUsingCenterPoseAndOffset(Pose pose, double xOffset, double yOffset, double zOffset,
-	                                                Length.Unit unit) {
+													Length.Unit unit) {
 		double x = pose.getPosition().getX(unit) + xOffset;
 		double y = pose.getPosition().getY(unit) + yOffset;
 		double z = pose.getPosition().getZ(unit) + zOffset;
@@ -224,7 +274,6 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 		moveNode.setConfig(moveNode.getConfigFactory().createMovePConfig(motionParameters, feature));
 	}
 
-
 	private void createAndAddWaypointNode(int waypointNumber) throws TreeStructureException {
 		String waypointName = createWaypointName(waypointNumber);
 		WaypointNode waypointNode = programNodeFactory.createWaypointNode(waypointName);
@@ -233,7 +282,7 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 	}
 
 	private static String createWaypointName(int waypointNumber) {
-		return "EllipsePos"+waypointNumber;
+		return "EllipsePos" + waypointNumber;
 	}
 
 	private void lockTreeNodes() {
@@ -246,5 +295,28 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 
 	private void setDefined(boolean defined) {
 		dataModel.set(DEFINED_KEY, defined);
+	}
+
+	private static class EllipseState {
+		private final String message;
+		private final boolean isError;
+
+		EllipseState() {
+			this.isError = false;
+			this.message = "";
+		}
+
+		EllipseState(String message) {
+			this.isError = true;
+			this.message = message;
+		}
+
+		public String getMessage() {
+			return message;
+		}
+
+		public boolean isError() {
+			return isError;
+		}
 	}
 }

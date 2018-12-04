@@ -4,8 +4,16 @@ import com.ur.urcap.api.contribution.ContributionProvider;
 import com.ur.urcap.api.contribution.program.swing.SwingProgramNodeView;
 
 import javax.imageio.ImageIO;
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -17,6 +25,7 @@ public class EllipseProgramNodeView implements SwingProgramNodeView<EllipseProgr
 	private final Icon errorIcon;
 
 	private JButton centerPointButton;
+	private JButton moveHereButton;
 	private JLabel errorLabel;
 
 	public EllipseProgramNodeView(Style style) {
@@ -44,7 +53,26 @@ public class EllipseProgramNodeView implements SwingProgramNodeView<EllipseProgr
 
 			}
 		});
+		this.centerPointButton.setPreferredSize(style.getButtonSize());
+		this.centerPointButton.setMinimumSize(style.getButtonSize());
+		this.centerPointButton.setMaximumSize(style.getButtonSize());
 		buttonSection.add(this.centerPointButton, FlowLayout.LEFT);
+		panel.add(buttonSection);
+		panel.add(createVerticalSpacing());
+
+		buttonSection = createSection(BoxLayout.LINE_AXIS);
+		buttonSection.add(createHorizontalIndent());
+		this.moveHereButton = createButton("Move here");
+		this.moveHereButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				provider.get().moveRobot();
+			}
+		});
+		this.moveHereButton.setPreferredSize(style.getButtonSize());
+		this.moveHereButton.setMinimumSize(style.getButtonSize());
+		this.moveHereButton.setMaximumSize(style.getButtonSize());
+		buttonSection.add(this.moveHereButton, FlowLayout.LEFT);
 		panel.add(buttonSection);
 		panel.add(createVerticalSpacing());
 
@@ -74,14 +102,13 @@ public class EllipseProgramNodeView implements SwingProgramNodeView<EllipseProgr
 		}
 	}
 
-	void setError() {
+	void updateError(String errorText, boolean isVisible) {
 		if (errorLabel != null) {
-			errorLabel.setVisible(true);
-			errorLabel.setText("<html>Error: Could not create ellipse movement<br>Try a different center point.</html>");
+			errorLabel.setVisible(isVisible);
+			errorLabel.setText("<html>Error: " + errorText + "</html>");
 			errorLabel.setIcon(errorIcon);
 		}
 	}
-
 
 	Box createInfo(String text) {
 		Box infoBox = Box.createHorizontalBox();
@@ -107,5 +134,9 @@ public class EllipseProgramNodeView implements SwingProgramNodeView<EllipseProgr
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.setAlignmentY(Component.TOP_ALIGNMENT);
 		return panel;
+	}
+
+	public void enableMoveButton(boolean isEnabled) {
+		moveHereButton.setEnabled(isEnabled);
 	}
 }
