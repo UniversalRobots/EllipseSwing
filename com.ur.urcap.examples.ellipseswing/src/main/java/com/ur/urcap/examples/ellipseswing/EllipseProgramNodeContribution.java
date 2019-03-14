@@ -11,7 +11,8 @@ import com.ur.urcap.api.domain.program.ProgramModel;
 import com.ur.urcap.api.domain.program.nodes.ProgramNodeFactory;
 import com.ur.urcap.api.domain.program.nodes.builtin.MoveNode;
 import com.ur.urcap.api.domain.program.nodes.builtin.WaypointNode;
-import com.ur.urcap.api.domain.program.nodes.builtin.configurations.movenode.MovePMotionParameters;
+import com.ur.urcap.api.domain.program.nodes.builtin.configurations.movenode.builder.MovePConfigBuilder;
+import com.ur.urcap.api.domain.program.nodes.builtin.configurations.movenode.TCPSelection;
 import com.ur.urcap.api.domain.program.nodes.builtin.configurations.waypointnode.BlendParameters;
 import com.ur.urcap.api.domain.program.nodes.builtin.configurations.waypointnode.WaypointMotionParameters;
 import com.ur.urcap.api.domain.program.nodes.builtin.configurations.waypointnode.WaypointNodeConfig;
@@ -29,11 +30,7 @@ import com.ur.urcap.api.domain.value.Pose;
 import com.ur.urcap.api.domain.value.ValueFactoryProvider;
 import com.ur.urcap.api.domain.value.blend.Blend;
 import com.ur.urcap.api.domain.value.jointposition.JointPositions;
-import com.ur.urcap.api.domain.value.simple.Acceleration;
-import com.ur.urcap.api.domain.value.simple.Angle;
-import com.ur.urcap.api.domain.value.simple.Length;
-import com.ur.urcap.api.domain.value.simple.SimpleValueFactory;
-import com.ur.urcap.api.domain.value.simple.Speed;
+import com.ur.urcap.api.domain.value.simple.*;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -265,13 +262,18 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 		Acceleration acceleration = valueFactory.createAcceleration(SHARED_TOOL_ACCELERATION, Acceleration.Unit.MM_S2);
 		Length length = valueFactory.createLength(SHARED_BLEND_RADIUS_IN_MM, Length.Unit.MM);
 		Blend blend = valueFactoryProvider.getBlendFactory().createBlend(length);
+        FeatureModel featureModel = programAPI.getFeatureModel();
+        Feature feature = featureModel.getBaseFeature();
+        TCPSelection tcpSelection = moveNode.getTCPSelectionFactory().createIgnoreActiveTCPSelection();
 
-		MovePMotionParameters motionParameters = moveNode.getConfigFactory().createMovePMotionParameters(speed,
-				ErrorHandler.AUTO_CORRECT, acceleration, ErrorHandler.AUTO_CORRECT, blend, ErrorHandler.AUTO_CORRECT);
-		FeatureModel featureModel = programAPI.getFeatureModel();
-		Feature feature = featureModel.getBaseFeature();
+        MovePConfigBuilder movePConfigBuilder = moveNode.getConfigBuilders().createMovePConfigBuilder()
+                .setToolSpeed(speed, ErrorHandler.AUTO_CORRECT)
+                .setToolAcceleration(acceleration, ErrorHandler.AUTO_CORRECT)
+                .setBlend(blend, ErrorHandler.AUTO_CORRECT)
+                .setFeature(feature)
+                .setTCPSelection(tcpSelection);
 
-		moveNode.setConfig(moveNode.getConfigFactory().createMovePConfig(motionParameters, feature));
+		moveNode.setConfig(movePConfigBuilder.build());
 	}
 
 	private void createAndAddWaypointNode(int waypointNumber) throws TreeStructureException {
