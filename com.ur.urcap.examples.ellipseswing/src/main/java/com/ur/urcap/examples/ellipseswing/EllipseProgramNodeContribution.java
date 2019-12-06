@@ -33,8 +33,8 @@ import com.ur.urcap.api.domain.value.jointposition.JointPositions;
 import com.ur.urcap.api.domain.value.simple.*;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+
 
 public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 
@@ -87,7 +87,7 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 
 	@Override
 	public String getTitle() {
-		return "Ellipse Swing";
+		return "Ellipse";
 	}
 
 	@Override
@@ -157,10 +157,8 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 		ProgramModel programModel = apiProvider.getProgramAPI().getProgramModel();
 		TreeNode rootTreeNode = programModel.getRootTreeNode(this);
 		try {
-			Iterator<TreeNode> it = rootTreeNode.getChildren().iterator();
-			while (it.hasNext()) {
-				TreeNode treeNode = it.next();
-				rootTreeNode.removeChild(treeNode);
+			for (TreeNode child : rootTreeNode.getChildren()) {
+				rootTreeNode.removeChild(child);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -262,16 +260,16 @@ public class EllipseProgramNodeContribution implements ProgramNodeContribution {
 		Acceleration acceleration = valueFactory.createAcceleration(SHARED_TOOL_ACCELERATION, Acceleration.Unit.MM_S2);
 		Length length = valueFactory.createLength(SHARED_BLEND_RADIUS_IN_MM, Length.Unit.MM);
 		Blend blend = valueFactoryProvider.getBlendFactory().createBlend(length);
-        FeatureModel featureModel = programAPI.getFeatureModel();
-        Feature feature = featureModel.getBaseFeature();
-        TCPSelection tcpSelection = moveNode.getTCPSelectionFactory().createIgnoreActiveTCPSelection();
+		FeatureModel featureModel = programAPI.getFeatureModel();
+		Feature feature = featureModel.getBaseFeature();
+		TCPSelection tcpSelection = moveNode.getTCPSelectionFactory().createIgnoreActiveTCPSelection();
 
-        MovePConfigBuilder movePConfigBuilder = moveNode.getConfigBuilders().createMovePConfigBuilder()
-                .setToolSpeed(speed, ErrorHandler.AUTO_CORRECT)
-                .setToolAcceleration(acceleration, ErrorHandler.AUTO_CORRECT)
-                .setBlend(blend, ErrorHandler.AUTO_CORRECT)
-                .setFeature(feature)
-                .setTCPSelection(tcpSelection);
+		MovePConfigBuilder movePConfigBuilder = moveNode.getConfigBuilders().createMovePConfigBuilder()
+				.setToolSpeed(speed, ErrorHandler.AUTO_CORRECT)
+				.setToolAcceleration(acceleration, ErrorHandler.AUTO_CORRECT)
+				.setBlend(blend, ErrorHandler.AUTO_CORRECT)
+				.setFeature(feature)
+				.setTCPSelection(tcpSelection);
 
 		moveNode.setConfig(movePConfigBuilder.build());
 	}

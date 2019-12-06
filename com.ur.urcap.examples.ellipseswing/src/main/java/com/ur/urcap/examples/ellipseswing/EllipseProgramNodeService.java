@@ -1,14 +1,15 @@
 package com.ur.urcap.examples.ellipseswing;
 
-import java.util.Locale;
-
 import com.ur.urcap.api.contribution.ViewAPIProvider;
 import com.ur.urcap.api.contribution.program.ContributionConfiguration;
 import com.ur.urcap.api.contribution.program.CreationContext;
 import com.ur.urcap.api.contribution.program.ProgramAPIProvider;
+import com.ur.urcap.api.contribution.program.configuration.debugging.ProgramDebuggingSupport;
 import com.ur.urcap.api.contribution.program.swing.SwingProgramNodeService;
 import com.ur.urcap.api.domain.SystemAPI;
 import com.ur.urcap.api.domain.data.DataModel;
+
+import java.util.Locale;
 
 public class EllipseProgramNodeService
 		implements SwingProgramNodeService<EllipseProgramNodeContribution, EllipseProgramNodeView> {
@@ -23,11 +24,15 @@ public class EllipseProgramNodeService
 		configuration.setDeprecated(false);
 		configuration.setChildrenAllowed(true);
 		configuration.setUserInsertable(true);
+
+		ProgramDebuggingSupport programDebuggingSupport = configuration.getProgramDebuggingSupport();
+		programDebuggingSupport.setAllowBreakpointOnChildNodesInSubtree(true);
+		programDebuggingSupport.setAllowStartFromChildNodesInSubtree(true);
 	}
 
 	@Override
 	public String getTitle(Locale locale) {
-		return "Ellipse Swing";
+		return "Ellipse";
 	}
 
 	@Override
